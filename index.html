@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player Scoreboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .container h1 {
+            margin-bottom: 20px;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        h1 {
+            text-align: center;
+            padding: 15px;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-shrink: 0;
+        }
+
+        .header-row h1 {
+            margin: 0;
+        }
+
+        .scoreboard-id {
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #00d4ff;
+            letter-spacing: 1px;
+            cursor: pointer;
+        }
+
+        .scoreboard-id:hover {
+            background: rgba(0, 212, 255, 0.3);
+        }
+
+        /* Balances section - always visible at top */
+        #balances-section {
+            flex-shrink: 0;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+            padding: 15px 20px;
+        }
+
+        #balances-section h2 {
+            display: none;
+        }
+
+        #balances-section .summary-cards {
+            margin-top: 0;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        #balances-section .summary-card {
+            min-width: 140px;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        #balances-section .summary-card .balance {
+            font-size: 2rem;
+        }
+
+        .cumulative-total {
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: #1a1a2e;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-header h3 {
+            color: #00d4ff;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #ff4757;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-info {
+            text-align: center;
+            margin-bottom: 15px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+        }
+
+        .modal-field {
+            margin-bottom: 15px;
+        }
+
+        .modal-field label {
+            display: block;
+            margin-bottom: 8px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+
+        .modal-field input {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .modal-type-buttons,
+        .modal-bonus-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .modal-type-btn,
+        .modal-bonus-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: transparent;
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .modal-type-btn:hover,
+        .modal-bonus-btn:hover {
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .modal-type-btn.active[data-type="W"] {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+
+        .modal-type-btn.active[data-type="L"] {
+            border-color: #ff4757;
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+        }
+
+        .modal-type-btn.active[data-type="C"] {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+        }
+
+        .modal-type-btn.active[data-type="D"] {
+            border-color: #ffa502;
+            background: rgba(255, 165, 2, 0.2);
+            color: #ffa502;
+        }
+
+        .modal-bonus-btn.active {
+            border-color: #a855f7;
+            background: rgba(168, 85, 247, 0.2);
+            color: #a855f7;
+        }
+
+        .modal-bonus-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .modal-preview {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            padding: 15px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-footer button {
+            flex: 1;
+        }
+
+        /* Clickable table cells */
+        .round-history td.editable {
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .round-history td.editable:hover {
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        /* Main content area */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            gap: 0;
+        }
+
+        /* Left panel - Game inputs */
+        .left-panel {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Right panel - History */
+        .right-panel {
+            width: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .right-panel h2 {
+            color: #00d4ff;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card h2 {
+            margin-bottom: 20px;
+            color: #00d4ff;
+            font-size: 1.3rem;
+        }
+
+        /* Game section in left panel */
+        #game-section {
+            background: transparent;
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #game-section h2 {
+            color: #00d4ff;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+
+        /* History section in right panel */
+        #history-section {
+            background: transparent;
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #history-section h2 {
+            display: none;
+        }
+
+        .setup-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        label {
+            font-weight: 500;
+        }
+
+        input[type="number"],
+        input[type="text"] {
+            padding: 12px 15px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            font-size: 1rem;
+            width: 100%;
+            max-width: 200px;
+        }
+
+        input[type="number"]:focus,
+        input[type="text"]:focus {
+            outline: 2px solid #00d4ff;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #000;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4757, #cc3344);
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 71, 87, 0.4);
+        }
+
+        .player-names {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .player-name-input {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .player-name-input input {
+            max-width: 100%;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .scoreboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .scoreboard-table th,
+        .scoreboard-table td {
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .scoreboard-table th {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+            font-weight: 600;
+        }
+
+        .scoreboard-table tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .balance-positive {
+            color: #00ff88;
+            font-weight: 600;
+        }
+
+        .balance-negative {
+            color: #ff4757;
+            font-weight: 600;
+        }
+
+        .balance-zero {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .round-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .round-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .round-input-group .player-label {
+            font-size: 1rem;
+            color: #00d4ff;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .round-input-group input {
+            max-width: 100%;
+        }
+
+        .score-type-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .score-type-btn {
+            flex: 1;
+            min-width: 40px;
+            padding: 8px 5px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            background: transparent;
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .score-type-btn:hover {
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .score-type-btn.active {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+        }
+
+        .score-type-btn.win {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+
+        .score-type-btn.lose {
+            border-color: #ff4757;
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+        }
+
+        .score-type-btn.credit {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+        }
+
+        .score-type-btn.debit {
+            border-color: #ffa502;
+            background: rgba(255, 165, 2, 0.2);
+            color: #ffa502;
+        }
+
+        .score-preview {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+            text-align: center;
+            margin-top: 5px;
+        }
+
+        .score-preview .preview-value {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .score-preview .preview-positive {
+            color: #00ff88;
+        }
+
+        .score-preview .preview-negative {
+            color: #ff4757;
+        }
+
+        .bonus-section {
+            margin-top: 5px;
+        }
+
+        .bonus-label {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 5px;
+        }
+
+        .bonus-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .bonus-btn {
+            flex: 1;
+            padding: 6px 4px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .bonus-btn:hover {
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .bonus-btn.active {
+            border-color: #a855f7;
+            background: rgba(168, 85, 247, 0.2);
+            color: #a855f7;
+        }
+
+        .bonus-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .bonus-btn:disabled:hover {
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .round-history {
+            margin-top: 0;
+            overflow-y: auto;
+        }
+
+        .round-history table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .round-history th,
+        .round-history td {
+            padding: 8px 6px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.85rem;
+        }
+
+        .round-history th {
+            background: rgba(0, 212, 255, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .summary-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .summary-card .player-name {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            color: #00d4ff;
+        }
+
+        .summary-card .balance {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .right-panel {
+                width: 100%;
+                max-height: 250px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .left-panel {
+                border-right: none;
+            }
+
+            #balances-section .summary-card .balance {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .setup-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            input[type="number"] {
+                max-width: 100%;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .action-buttons button {
+                width: 100%;
+            }
+
+            #balances-section .summary-cards {
+                gap: 10px;
+            }
+
+            #balances-section .summary-card {
+                min-width: 100px;
+                padding: 8px 12px;
+            }
+
+            #balances-section .summary-card .balance {
+                font-size: 1.3rem;
+            }
+
+            #balances-section .summary-card .player-name {
+                font-size: 0.9rem;
+            }
+
+            h1 {
+                font-size: 1.2rem;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Setup Section - shown before game starts -->
+    <div class="container" id="setup-section">
+        <h1>Player Scoreboard</h1>
+        <div class="card">
+            <h2>Game Setup</h2>
+            <div class="setup-row">
+                <label for="player-count">Number of Players:</label>
+                <input type="number" id="player-count" min="2" max="20" value="2" placeholder="Enter number">
+                <button class="btn-primary" onclick="generatePlayerInputs()">Set Players</button>
+            </div>
+            <div id="player-names-container" class="player-names hidden"></div>
+            <div id="start-game-container" class="hidden" style="margin-top: 20px;">
+                <button class="btn-success" onclick="startGame()">Start Game</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay hidden" id="edit-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Edit Score</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-info" id="modal-info"></div>
+                <div class="modal-field">
+                    <label>Amount</label>
+                    <input type="number" id="edit-amount" step="any">
+                </div>
+                <div class="modal-field">
+                    <label>Type</label>
+                    <div class="modal-type-buttons" id="edit-type-buttons">
+                        <button type="button" class="modal-type-btn" data-type="W">W</button>
+                        <button type="button" class="modal-type-btn" data-type="L">L</button>
+                        <button type="button" class="modal-type-btn" data-type="C">C</button>
+                        <button type="button" class="modal-type-btn" data-type="D">D</button>
+                    </div>
+                </div>
+                <div class="modal-field" id="edit-bonus-section">
+                    <label>Bonus (for W only)</label>
+                    <div class="modal-bonus-buttons" id="edit-bonus-buttons">
+                        <button type="button" class="modal-bonus-btn" data-bonus="1">1x</button>
+                        <button type="button" class="modal-bonus-btn" data-bonus="2">2x</button>
+                        <button type="button" class="modal-bonus-btn" data-bonus="3">3x</button>
+                        <button type="button" class="modal-bonus-btn" data-bonus="4">4x</button>
+                    </div>
+                </div>
+                <div class="modal-preview" id="modal-preview"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-danger" onclick="closeModal()">Cancel</button>
+                <button class="btn-success" onclick="saveEdit()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Container - shown after game starts -->
+    <div class="game-container hidden" id="game-container">
+        <div class="header-row">
+            <h1>Player Scoreboard</h1>
+            <div class="scoreboard-id" id="scoreboard-id-display"></div>
+        </div>
+
+        <!-- Balances Section - always visible at top -->
+        <div id="balances-section">
+            <div id="cumulative-total" class="cumulative-total"></div>
+            <div id="summary-cards" class="summary-cards"></div>
+        </div>
+
+        <!-- Main content area -->
+        <div class="main-content">
+            <!-- Left panel - Game inputs -->
+            <div class="left-panel">
+                <div id="game-section">
+                    <h2>Round <span id="current-round">1</span> - Enter Scores</h2>
+                    <div id="round-inputs" class="round-inputs"></div>
+                    <div class="action-buttons">
+                        <button class="btn-success" onclick="submitRound()">Submit Round</button>
+                        <button class="btn-danger" onclick="resetGame()">Reset Game</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right panel - History -->
+            <div class="right-panel">
+                <h2>Round History</h2>
+                <div id="history-section">
+                    <div id="round-history" class="round-history"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let players = [];
+        let rounds = [];
+        let currentRound = 1;
+        let playerInputs = []; // Persisted input values and types
+        let scoreboardId = null; // Unique 5-character ID
+
+        // Modal state
+        let editingRoundIndex = null;
+        let editingPlayerIndex = null;
+        let editAmount = 0;
+        let editType = null;
+        let editBonus = null;
+
+        // Generate unique 5-character ID
+        function generateId() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let id = '';
+            for (let i = 0; i < 5; i++) {
+                id += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return id;
+        }
+
+        // Save scoreboard to localStorage
+        function saveToStorage() {
+            if (!scoreboardId) return;
+
+            const data = {
+                id: scoreboardId,
+                players: players,
+                rounds: rounds,
+                currentRound: currentRound,
+                playerInputs: playerInputs,
+                timestamp: Date.now()
+            };
+
+            localStorage.setItem(`scoreboard_${scoreboardId}`, JSON.stringify(data));
+        }
+
+        // Load scoreboard from localStorage
+        function loadFromStorage(id) {
+            const data = localStorage.getItem(`scoreboard_${id}`);
+            if (!data) return false;
+
+            try {
+                const parsed = JSON.parse(data);
+                scoreboardId = parsed.id;
+                players = parsed.players || [];
+                rounds = parsed.rounds || [];
+                currentRound = parsed.currentRound || 1;
+                playerInputs = parsed.playerInputs || [];
+                return true;
+            } catch (e) {
+                console.error('Error loading scoreboard:', e);
+                return false;
+            }
+        }
+
+        // Update URL with scoreboard ID
+        function updateUrl() {
+            if (scoreboardId) {
+                window.history.replaceState(null, '', `?id=${scoreboardId}`);
+            }
+        }
+
+        // Get scoreboard ID from URL
+        function getIdFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
+
+        // Initialize on page load
+        function init() {
+            const urlId = getIdFromUrl();
+            if (urlId && loadFromStorage(urlId)) {
+                // Loaded existing scoreboard
+                document.getElementById('setup-section').classList.add('hidden');
+                document.getElementById('game-container').classList.remove('hidden');
+                generateRoundInputs();
+                updateBalanceDisplay();
+                updateHistoryDisplay();
+                updateScoreboardIdDisplay();
+            }
+        }
+
+        // Update scoreboard ID display
+        function updateScoreboardIdDisplay() {
+            const idDisplay = document.getElementById('scoreboard-id-display');
+            if (idDisplay && scoreboardId) {
+                idDisplay.textContent = `ID: ${scoreboardId}`;
+                idDisplay.title = 'Click to copy URL';
+                idDisplay.onclick = copyScoreboardUrl;
+            }
+        }
+
+        // Copy scoreboard URL to clipboard
+        function copyScoreboardUrl() {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(() => {
+                const idDisplay = document.getElementById('scoreboard-id-display');
+                const originalText = idDisplay.textContent;
+                idDisplay.textContent = 'Copied!';
+                setTimeout(() => {
+                    idDisplay.textContent = originalText;
+                }, 1500);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('URL: ' + url);
+            });
+        }
+
+        // Run init on page load
+        window.addEventListener('DOMContentLoaded', init);
+
+        function generatePlayerInputs() {
+            const count = parseInt(document.getElementById('player-count').value);
+            if (count < 2 || count > 20) {
+                alert('Please enter a number between 2 and 20');
+                return;
+            }
+
+            const container = document.getElementById('player-names-container');
+            container.innerHTML = '';
+            container.classList.remove('hidden');
+
+            for (let i = 0; i < count; i++) {
+                const div = document.createElement('div');
+                div.className = 'player-name-input';
+                div.innerHTML = `
+                    <label>Player ${i + 1}</label>
+                    <input type="text" id="player-name-${i}" placeholder="Enter name" required>
+                `;
+                container.appendChild(div);
+            }
+
+            document.getElementById('start-game-container').classList.remove('hidden');
+        }
+
+        function startGame() {
+            const count = parseInt(document.getElementById('player-count').value);
+            players = [];
+            playerInputs = [];
+
+            for (let i = 0; i < count; i++) {
+                const name = document.getElementById(`player-name-${i}`).value.trim();
+                if (!name) {
+                    alert(`Please enter a name for Player ${i + 1}`);
+                    return;
+                }
+                players.push({ name: name, balance: 0 });
+                playerInputs.push({ amount: '', type: null, bonus: null }); // Initialize persisted inputs
+            }
+
+            rounds = [];
+            currentRound = 1;
+
+            // Generate unique ID for this scoreboard
+            scoreboardId = generateId();
+            updateUrl();
+            saveToStorage();
+
+            document.getElementById('setup-section').classList.add('hidden');
+            document.getElementById('game-container').classList.remove('hidden');
+
+            generateRoundInputs();
+            updateBalanceDisplay();
+            updateHistoryDisplay();
+            updateScoreboardIdDisplay();
+        }
+
+        function generateRoundInputs() {
+            const container = document.getElementById('round-inputs');
+            container.innerHTML = '';
+
+            players.forEach((player, index) => {
+                const savedAmount = playerInputs[index].amount;
+                const savedType = playerInputs[index].type;
+                const savedBonus = playerInputs[index].bonus;
+
+                const div = document.createElement('div');
+                div.className = 'round-input-group';
+                div.innerHTML = `
+                    <div class="player-label">${player.name}</div>
+                    <input type="number" id="round-score-${index}" placeholder="Enter amount" step="any"
+                           value="${savedAmount}" oninput="updatePreview(${index})">
+                    <div class="score-type-buttons">
+                        <button type="button" class="score-type-btn ${savedType === 'W' ? 'win active' : ''}"
+                                onclick="selectType(${index}, 'W')" title="Win: +2x amount">W</button>
+                        <button type="button" class="score-type-btn ${savedType === 'L' ? 'lose active' : ''}"
+                                onclick="selectType(${index}, 'L')" title="Lose: -2x amount">L</button>
+                        <button type="button" class="score-type-btn ${savedType === 'C' ? 'credit active' : ''}"
+                                onclick="selectType(${index}, 'C')" title="Credit: +1x amount">C</button>
+                        <button type="button" class="score-type-btn ${savedType === 'D' ? 'debit active' : ''}"
+                                onclick="selectType(${index}, 'D')" title="Debit: -1x amount">D</button>
+                    </div>
+                    <div class="bonus-section" id="bonus-section-${index}">
+                        <div class="bonus-label">Bonus Multiplier</div>
+                        <div class="bonus-buttons">
+                            <button type="button" class="bonus-btn ${savedBonus === 1 ? 'active' : ''}"
+                                    onclick="selectBonus(${index}, 1)" ${savedType !== 'W' ? 'disabled' : ''}>1x</button>
+                            <button type="button" class="bonus-btn ${savedBonus === 2 ? 'active' : ''}"
+                                    onclick="selectBonus(${index}, 2)" ${savedType !== 'W' ? 'disabled' : ''}>2x</button>
+                            <button type="button" class="bonus-btn ${savedBonus === 3 ? 'active' : ''}"
+                                    onclick="selectBonus(${index}, 3)" ${savedType !== 'W' ? 'disabled' : ''}>3x</button>
+                            <button type="button" class="bonus-btn ${savedBonus === 4 ? 'active' : ''}"
+                                    onclick="selectBonus(${index}, 4)" ${savedType !== 'W' ? 'disabled' : ''}>4x</button>
+                        </div>
+                    </div>
+                    <div class="score-preview" id="preview-${index}">
+                        ${getPreviewText(index)}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('current-round').textContent = currentRound;
+        }
+
+        function selectType(playerIndex, type) {
+            playerInputs[playerIndex].type = type;
+
+            // Update button styles
+            const buttons = document.querySelectorAll(`#round-inputs .round-input-group:nth-child(${playerIndex + 1}) .score-type-btn`);
+            buttons.forEach(btn => {
+                btn.classList.remove('active', 'win', 'lose', 'credit', 'debit');
+            });
+
+            const activeBtn = document.querySelector(`#round-inputs .round-input-group:nth-child(${playerIndex + 1}) .score-type-btn:nth-child(${getTypeIndex(type)})`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+                if (type === 'W') activeBtn.classList.add('win');
+                if (type === 'L') activeBtn.classList.add('lose');
+                if (type === 'C') activeBtn.classList.add('credit');
+                if (type === 'D') activeBtn.classList.add('debit');
+            }
+
+            // Enable/disable bonus buttons based on type (only enabled for W)
+            const bonusButtons = document.querySelectorAll(`#bonus-section-${playerIndex} .bonus-btn`);
+            const disableBonus = (type !== 'W');
+
+            bonusButtons.forEach(btn => {
+                btn.disabled = disableBonus;
+                if (disableBonus) {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // Clear bonus if not W
+            if (disableBonus) {
+                playerInputs[playerIndex].bonus = null;
+            }
+
+            updatePreview(playerIndex);
+        }
+
+        function getTypeIndex(type) {
+            const types = { 'W': 1, 'L': 2, 'C': 3, 'D': 4 };
+            return types[type] || 0;
+        }
+
+        function selectBonus(playerIndex, bonus) {
+            // Toggle bonus - if same bonus clicked, unselect it
+            if (playerInputs[playerIndex].bonus === bonus) {
+                playerInputs[playerIndex].bonus = null;
+            } else {
+                playerInputs[playerIndex].bonus = bonus;
+            }
+
+            // Update button styles
+            const buttons = document.querySelectorAll(`#round-inputs .round-input-group:nth-child(${playerIndex + 1}) .bonus-btn`);
+            buttons.forEach(btn => btn.classList.remove('active'));
+
+            if (playerInputs[playerIndex].bonus) {
+                const activeBtn = document.querySelector(`#round-inputs .round-input-group:nth-child(${playerIndex + 1}) .bonus-btn:nth-child(${playerInputs[playerIndex].bonus})`);
+                if (activeBtn) {
+                    activeBtn.classList.add('active');
+                }
+            }
+
+            updatePreview(playerIndex);
+        }
+
+        function updatePreview(playerIndex) {
+            const input = document.getElementById(`round-score-${playerIndex}`);
+            playerInputs[playerIndex].amount = input.value;
+
+            const previewEl = document.getElementById(`preview-${playerIndex}`);
+            previewEl.innerHTML = getPreviewText(playerIndex);
+        }
+
+        function getPreviewText(playerIndex) {
+            const amount = parseFloat(playerInputs[playerIndex].amount) || 0;
+            const type = playerInputs[playerIndex].type;
+            const bonus = playerInputs[playerIndex].bonus;
+            const bonusApplies = (type === 'W');
+
+            if (amount === 0) {
+                return '<span style="color: rgba(255,255,255,0.4);">Enter amount</span>';
+            }
+
+            if (!type) {
+                return '<span style="color: rgba(255,255,255,0.4);">Select W/L/C/D</span>';
+            }
+
+            const baseScore = calculateBaseScore(amount, type);
+            const bonusAmount = bonusApplies && bonus ? amount * bonus : 0;
+            const totalScore = baseScore + bonusAmount;
+
+            const prefix = totalScore >= 0 ? '+' : '';
+            const colorClass = totalScore >= 0 ? 'preview-positive' : 'preview-negative';
+            const typeLabels = { 'W': 'Win', 'L': 'Lose', 'C': 'Credit', 'D': 'Debit' };
+
+            const basePrefix = baseScore >= 0 ? '+' : '';
+
+            let breakdown;
+            if (bonusApplies && bonus) {
+                breakdown = `${typeLabels[type]}: ${basePrefix}${baseScore.toFixed(0)} | Bonus: +${bonusAmount.toFixed(0)}`;
+            } else {
+                breakdown = `${typeLabels[type]}: ${basePrefix}${baseScore.toFixed(0)}`;
+            }
+
+            return `${breakdown}<br><span class="preview-value ${colorClass}">Total: ${prefix}${totalScore.toFixed(2)}</span>`;
+        }
+
+        function calculateBaseScore(amount, type) {
+            switch(type) {
+                case 'W': return amount * 2;      // Win: double positive
+                case 'L': return amount * -2;    // Lose: double negative
+                case 'C': return amount;          // Credit: add as is
+                case 'D': return -amount;         // Debit: subtract
+                default: return 0;
+            }
+        }
+
+        function calculateTotalScore(amount, type, bonus) {
+            const baseScore = calculateBaseScore(amount, type);
+            const bonusApplies = (type === 'W');
+            const bonusAmount = bonusApplies && bonus ? amount * bonus : 0;
+            return baseScore + bonusAmount;
+        }
+
+        function submitRound() {
+            const roundScores = [];
+            const roundDetails = [];
+            let hasValidInput = false;
+
+            players.forEach((player, index) => {
+                const amount = parseFloat(playerInputs[index].amount) || 0;
+                const type = playerInputs[index].type;
+                const bonus = playerInputs[index].bonus;
+
+                // Valid if: has amount and has type
+                if (amount !== 0 && type) {
+                    hasValidInput = true;
+                }
+
+                const score = type ? calculateTotalScore(amount, type, bonus) : 0;
+                roundScores.push(score);
+                roundDetails.push({ amount, type, bonus, score });
+                player.balance += score;
+            });
+
+            if (!hasValidInput) {
+                alert('Please enter at least one amount and select W/L/C/D');
+                return;
+            }
+
+            rounds.push({
+                round: currentRound,
+                scores: roundScores,
+                details: roundDetails
+            });
+
+            currentRound++;
+
+            // Reset type and bonus selection, keep the amounts persisted
+            playerInputs.forEach(input => {
+                input.type = null;
+                input.bonus = null;
+            });
+
+            generateRoundInputs();
+            updateBalanceDisplay();
+            updateHistoryDisplay();
+            saveToStorage();
+        }
+
+        function updateBalanceDisplay() {
+            // Update total (inverted sign)
+            const totalContainer = document.getElementById('cumulative-total');
+            const cumulativeTotal = players.reduce((sum, player) => sum + player.balance, 0);
+            const invertedTotal = -cumulativeTotal;
+
+            let totalClass = 'balance-zero';
+            let totalPrefix = '';
+            if (invertedTotal > 0) {
+                totalClass = 'balance-positive';
+                totalPrefix = '+';
+            } else if (invertedTotal < 0) {
+                totalClass = 'balance-negative';
+            }
+
+            totalContainer.innerHTML = `<span class="${totalClass}">${totalPrefix}${invertedTotal.toFixed(2)}</span>`;
+
+            // Update individual player balances
+            const container = document.getElementById('summary-cards');
+            container.innerHTML = '';
+
+            players.forEach(player => {
+                const div = document.createElement('div');
+                div.className = 'summary-card';
+
+                let balanceClass = 'balance-zero';
+                let prefix = '';
+                if (player.balance > 0) {
+                    balanceClass = 'balance-positive';
+                    prefix = '+';
+                } else if (player.balance < 0) {
+                    balanceClass = 'balance-negative';
+                }
+
+                div.innerHTML = `
+                    <div class="player-name">${player.name}</div>
+                    <div class="balance ${balanceClass}">${prefix}${player.balance.toFixed(2)}</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateHistoryDisplay() {
+            const container = document.getElementById('round-history');
+
+            if (rounds.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5);">No rounds played yet</p>';
+                return;
+            }
+
+            let html = '<table><thead><tr><th>Round</th>';
+            players.forEach(player => {
+                html += `<th>${player.name}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            rounds.forEach((round, roundIdx) => {
+                html += `<tr><td>Round ${round.round}</td>`;
+                round.details.forEach((detail, playerIdx) => {
+                    const score = detail.score;
+                    let className = 'balance-zero';
+                    let prefix = '';
+                    if (score > 0) {
+                        className = 'balance-positive';
+                        prefix = '+';
+                    } else if (score < 0) {
+                        className = 'balance-negative';
+                    }
+                    let infoLabel = '';
+                    if (detail.type) {
+                        const bonusText = detail.bonus > 1 ? `${detail.bonus}x` : '';
+                        infoLabel = `<span style="font-size:0.75rem;opacity:0.7;">(${detail.type}${bonusText ? ' ' + bonusText : ''})</span>`;
+                    }
+                    html += `<td class="${className} editable" onclick="openEditModal(${roundIdx}, ${playerIdx})">${prefix}${score.toFixed(2)} ${infoLabel}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            // Add totals row
+            html += '<tr style="background: rgba(0, 212, 255, 0.1); font-weight: bold;"><td>Total</td>';
+            players.forEach(player => {
+                let className = 'balance-zero';
+                let prefix = '';
+                if (player.balance > 0) {
+                    className = 'balance-positive';
+                    prefix = '+';
+                } else if (player.balance < 0) {
+                    className = 'balance-negative';
+                }
+                html += `<td class="${className}">${prefix}${player.balance.toFixed(2)}</td>`;
+            });
+            html += '</tr>';
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function resetGame() {
+            if (!confirm('Are you sure you want to reset the game? All data will be lost.')) {
+                return;
+            }
+
+            // Remove from localStorage
+            if (scoreboardId) {
+                localStorage.removeItem(`scoreboard_${scoreboardId}`);
+            }
+
+            players = [];
+            rounds = [];
+            currentRound = 1;
+            playerInputs = [];
+            scoreboardId = null;
+
+            // Clear URL
+            window.history.replaceState(null, '', window.location.pathname);
+
+            document.getElementById('setup-section').classList.remove('hidden');
+            document.getElementById('game-container').classList.add('hidden');
+
+            document.getElementById('player-count').value = 2;
+            document.getElementById('player-names-container').innerHTML = '';
+            document.getElementById('player-names-container').classList.add('hidden');
+            document.getElementById('start-game-container').classList.add('hidden');
+        }
+
+        // Modal functions
+        function openEditModal(roundIdx, playerIdx) {
+            editingRoundIndex = roundIdx;
+            editingPlayerIndex = playerIdx;
+
+            const detail = rounds[roundIdx].details[playerIdx];
+            editAmount = detail.amount || 0;
+            editType = detail.type;
+            editBonus = detail.bonus;
+
+            // Set modal info
+            document.getElementById('modal-info').textContent =
+                `Round ${rounds[roundIdx].round} - ${players[playerIdx].name}`;
+
+            // Set amount
+            document.getElementById('edit-amount').value = editAmount;
+
+            // Set type buttons
+            updateModalTypeButtons();
+
+            // Set bonus buttons
+            updateModalBonusButtons();
+
+            // Update preview
+            updateModalPreview();
+
+            // Show modal
+            document.getElementById('edit-modal').classList.remove('hidden');
+
+            // Add event listeners
+            document.getElementById('edit-amount').oninput = function() {
+                editAmount = parseFloat(this.value) || 0;
+                updateModalPreview();
+            };
+        }
+
+        function closeModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+            editingRoundIndex = null;
+            editingPlayerIndex = null;
+        }
+
+        function updateModalTypeButtons() {
+            const buttons = document.querySelectorAll('.modal-type-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.type === editType) {
+                    btn.classList.add('active');
+                }
+                btn.onclick = function() {
+                    editType = this.dataset.type;
+                    // Clear bonus if not W
+                    if (editType !== 'W') {
+                        editBonus = null;
+                    }
+                    updateModalTypeButtons();
+                    updateModalBonusButtons();
+                    updateModalPreview();
+                };
+            });
+        }
+
+        function updateModalBonusButtons() {
+            const bonusSection = document.getElementById('edit-bonus-section');
+            const buttons = document.querySelectorAll('.modal-bonus-btn');
+            const disabled = editType !== 'W';
+
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+                btn.disabled = disabled;
+                if (parseInt(btn.dataset.bonus) === editBonus) {
+                    btn.classList.add('active');
+                }
+                btn.onclick = function() {
+                    if (disabled) return;
+                    const clickedBonus = parseInt(this.dataset.bonus);
+                    // Toggle bonus
+                    if (editBonus === clickedBonus) {
+                        editBonus = null;
+                    } else {
+                        editBonus = clickedBonus;
+                    }
+                    updateModalBonusButtons();
+                    updateModalPreview();
+                };
+            });
+        }
+
+        function updateModalPreview() {
+            const previewEl = document.getElementById('modal-preview');
+
+            if (!editType || editAmount === 0) {
+                previewEl.innerHTML = '<span style="color: rgba(255,255,255,0.4);">Enter amount and select type</span>';
+                return;
+            }
+
+            const baseScore = calculateBaseScore(editAmount, editType);
+            const bonusApplies = (editType === 'W');
+            const bonusAmount = bonusApplies && editBonus ? editAmount * editBonus : 0;
+            const totalScore = baseScore + bonusAmount;
+
+            const prefix = totalScore >= 0 ? '+' : '';
+            const colorClass = totalScore >= 0 ? 'balance-positive' : 'balance-negative';
+            const typeLabels = { 'W': 'Win', 'L': 'Lose', 'C': 'Credit', 'D': 'Debit' };
+
+            let breakdown;
+            if (bonusApplies && editBonus) {
+                const basePrefix = baseScore >= 0 ? '+' : '';
+                breakdown = `${typeLabels[editType]}: ${basePrefix}${baseScore.toFixed(0)} | Bonus: +${bonusAmount.toFixed(0)}<br>`;
+            } else {
+                breakdown = '';
+            }
+
+            previewEl.innerHTML = `${breakdown}<span class="${colorClass}" style="font-size:1.5rem;font-weight:700;">Total: ${prefix}${totalScore.toFixed(2)}</span>`;
+        }
+
+        function saveEdit() {
+            if (!editType || editAmount === 0) {
+                alert('Please enter amount and select type');
+                return;
+            }
+
+            const oldScore = rounds[editingRoundIndex].details[editingPlayerIndex].score;
+            const newScore = calculateTotalScore(editAmount, editType, editBonus);
+
+            // Update round details
+            rounds[editingRoundIndex].details[editingPlayerIndex] = {
+                amount: editAmount,
+                type: editType,
+                bonus: editBonus,
+                score: newScore
+            };
+            rounds[editingRoundIndex].scores[editingPlayerIndex] = newScore;
+
+            // Update player balance
+            players[editingPlayerIndex].balance += (newScore - oldScore);
+
+            // Refresh displays
+            updateBalanceDisplay();
+            updateHistoryDisplay();
+            saveToStorage();
+
+            // Close modal
+            closeModal();
+        }
+
+        // Close modal on overlay click
+        document.getElementById('edit-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
