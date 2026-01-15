@@ -787,7 +787,7 @@
                 <div class="modal-info" id="modal-info"></div>
                 <div class="modal-field">
                     <label>Amount</label>
-                    <input type="number" id="edit-amount" step="any">
+                    <input type="number" id="edit-amount" step="100">
                 </div>
                 <div class="modal-field">
                     <label>Type</label>
@@ -838,7 +838,6 @@
                     <div id="round-inputs" class="round-inputs"></div>
                     <div class="action-buttons">
                         <button class="btn-success" onclick="submitRound()">Submit Round</button>
-                        <button class="btn-danger" onclick="resetGame()">Reset Game</button>
                     </div>
                 </div>
             </div>
@@ -1037,7 +1036,7 @@
                 div.className = 'round-input-group';
                 div.innerHTML = `
                     <div class="player-label">${player.name}</div>
-                    <input type="number" id="round-score-${index}" placeholder="Enter amount" step="any"
+                    <input type="number" id="round-score-${index}" placeholder="Enter amount" step="100"
                            value="${savedAmount}" oninput="updatePreview(${index})">
                     <div class="score-type-buttons">
                         <button type="button" class="score-type-btn ${savedType === 'W' ? 'win active' : ''}"
@@ -1175,7 +1174,7 @@
                 breakdown = `${typeLabels[type]}: ${basePrefix}${baseScore.toFixed(0)}`;
             }
 
-            return `${breakdown}<br><span class="preview-value ${colorClass}">Total: ${prefix}${totalScore.toFixed(2)}</span>`;
+            return `${breakdown}<br><span class="preview-value ${colorClass}">Total: ${prefix}${totalScore.toFixed(0)}</span>`;
         }
 
         function calculateBaseScore(amount, type) {
@@ -1256,7 +1255,7 @@
                 totalClass = 'balance-negative';
             }
 
-            totalContainer.innerHTML = `<span class="${totalClass}">${totalPrefix}${invertedTotal.toFixed(2)}</span>`;
+            totalContainer.innerHTML = `<span class="${totalClass}">${totalPrefix}${invertedTotal.toFixed(0)}</span>`;
 
             // Update individual player balances
             const container = document.getElementById('summary-cards');
@@ -1277,7 +1276,7 @@
 
                 div.innerHTML = `
                     <div class="player-name">${player.name}</div>
-                    <div class="balance ${balanceClass}">${prefix}${player.balance.toFixed(2)}</div>
+                    <div class="balance ${balanceClass}">${prefix}${player.balance.toFixed(0)}</div>
                 `;
                 container.appendChild(div);
             });
@@ -1314,7 +1313,7 @@
                         const bonusText = detail.bonus > 1 ? `${detail.bonus}x` : '';
                         infoLabel = `<span style="font-size:0.75rem;opacity:0.7;">(${detail.type}${bonusText ? ' ' + bonusText : ''})</span>`;
                     }
-                    html += `<td class="${className} editable" onclick="openEditModal(${roundIdx}, ${playerIdx})">${prefix}${score.toFixed(2)} ${infoLabel}</td>`;
+                    html += `<td class="${className} editable" onclick="openEditModal(${roundIdx}, ${playerIdx})">${prefix}${score.toFixed(0)} ${infoLabel}</td>`;
                 });
                 html += '</tr>';
             });
@@ -1330,7 +1329,7 @@
                 } else if (player.balance < 0) {
                     className = 'balance-negative';
                 }
-                html += `<td class="${className}">${prefix}${player.balance.toFixed(2)}</td>`;
+                html += `<td class="${className}">${prefix}${player.balance.toFixed(0)}</td>`;
             });
             html += '</tr>';
 
@@ -1479,7 +1478,7 @@
                 breakdown = '';
             }
 
-            previewEl.innerHTML = `${breakdown}<span class="${colorClass}" style="font-size:1.5rem;font-weight:700;">Total: ${prefix}${totalScore.toFixed(2)}</span>`;
+            previewEl.innerHTML = `${breakdown}<span class="${colorClass}" style="font-size:1.5rem;font-weight:700;">Total: ${prefix}${totalScore.toFixed(0)}</span>`;
         }
 
         function saveEdit() {
