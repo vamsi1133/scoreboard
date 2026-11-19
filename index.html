@@ -1182,6 +1182,95 @@
 
         .hidden { display: none !important; }
 
+        /* ============================================================
+           SPECTATOR VIEW & LIVE WEBRTC DISPLAY
+           ============================================================ */
+        .spectator-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 24px 20px 48px;
+            width: 100%;
+        }
+
+        .spectator-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 14px;
+            border-bottom: 0.5px solid var(--border-hairline);
+            padding-bottom: 16px;
+        }
+
+        .spectator-title-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .live-pulse-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent-green);
+            background: rgba(48, 209, 88, 0.15);
+            border: 0.5px solid rgba(48, 209, 88, 0.3);
+            padding: 4px 10px;
+            border-radius: 980px;
+            letter-spacing: 0.5px;
+        }
+
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+            animation: pulseDot 1.8s infinite ease-in-out;
+        }
+
+        @keyframes pulseDot {
+            0% { opacity: 0.3; transform: scale(0.85); }
+            50% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0.3; transform: scale(0.85); }
+        }
+
+        .spectator-dealer-hero {
+            background: linear-gradient(145deg, rgba(10, 132, 255, 0.16), rgba(28, 28, 30, 0.85));
+            border: 1px solid rgba(10, 132, 255, 0.45);
+            border-radius: var(--radius-lg);
+            padding: 28px 24px;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(10, 132, 255, 0.1);
+            text-align: center;
+        }
+
+        .peer-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(48, 209, 88, 0.12);
+            border: 0.5px solid rgba(48, 209, 88, 0.3);
+            color: var(--accent-green);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 980px;
+        }
+
+        .qr-card-wrap {
+            background: #ffffff;
+            padding: 18px;
+            border-radius: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+        }
+
         /* Responsive Breakpoints */
         @media (max-width: 900px) {
             .scoreboard-layout {
@@ -1418,6 +1507,69 @@
     </main>
 
     <!-- ============================================================
+         VIEW 4: SPECTATOR LIVE DISPLAY (READ-ONLY)
+         ============================================================ -->
+    <main class="view-section hidden" id="view-spectator">
+        <div class="spectator-container">
+            <!-- Spectator Top Status Banner -->
+            <div class="spectator-header">
+                <div class="spectator-title-group">
+                    <span class="live-pulse-badge">
+                        <span class="pulse-dot"></span> LIVE
+                    </span>
+                    <h1 id="spectator-table-title" style="font-size:20px; font-weight:700;">Table 1</h1>
+                    <span id="spectator-conn-status" style="font-size:12px; color:var(--text-secondary);">Connecting to table...</span>
+                </div>
+
+                <!-- Spectator Tab Switcher (Live Scores vs Scoreboard Rounds) -->
+                <div class="tab-switcher">
+                    <button class="tab-btn active" id="spec-tab-scores" onclick="switchSpectatorTab('scores')">Live Scores</button>
+                    <button class="tab-btn" id="spec-tab-rounds" onclick="switchSpectatorTab('rounds')">Scoreboard Rounds</button>
+                </div>
+            </div>
+
+            <!-- Spectator Tab 1: Live Scores (Glanceable Big Cards) -->
+            <div id="spec-content-scores">
+                <!-- Standout Dealer Net Card -->
+                <div class="spectator-dealer-hero">
+                    <div class="dealer-card-top">
+                        <span class="dealer-tag" style="font-size:13px; font-weight:700; color:var(--accent-blue);">DEALER NET (HOUSE)</span>
+                        <span class="round-pill" id="spectator-round-tag">Round 1</span>
+                    </div>
+                    <div id="spectator-dealer-hero-display" class="dealer-val color-neutral" style="font-size:44px; margin: 12px 0;">₹0</div>
+                    <div class="dealer-card-sub" id="spectator-dealer-sub-text" style="font-size:15px; font-weight:600;">Even Table</div>
+                </div>
+
+                <!-- Dedicated Player Score Tiles Grid -->
+                <div style="margin-top:24px;">
+                    <div style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-secondary); margin-bottom:12px;">
+                        Player Standings
+                    </div>
+                    <div class="player-tiles-grid" id="spectator-player-tiles-grid"></div>
+                </div>
+            </div>
+
+            <!-- Spectator Tab 2: Scoreboard Rounds (Read-Only Ledger Table) -->
+            <div class="hidden" id="spec-content-rounds" style="margin-top:16px;">
+                <div class="ledger-card">
+                    <div class="ledger-card-header">
+                        <span class="ledger-card-title">Scoreboard History</span>
+                        <span style="font-size: 11px; color: var(--text-secondary);">Read-Only Spectator View</span>
+                    </div>
+
+                    <div class="table-scroll">
+                        <table class="apple-table" id="spectator-ledger-table">
+                            <thead id="spec-ledger-thead"></thead>
+                            <tbody id="spec-ledger-tbody"></tbody>
+                            <tfoot id="spec-ledger-tfoot"></tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ============================================================
          MODALS
          ============================================================ -->
 
@@ -1517,8 +1669,50 @@
         </div>
     </div>
 
+    <!-- Modal 4: Live Spectator QR Code -->
+    <div class="modal-scrim hidden" id="modal-live-qr">
+        <div class="modal-sheet" style="max-width: 380px; text-align: center;">
+            <div class="modal-sheet-header">
+                <span class="modal-sheet-title">Spectator QR Display</span>
+                <button class="modal-sheet-close" onclick="closeLiveQrModal()">&times;</button>
+            </div>
+            <div class="modal-sheet-body" style="display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 22px;">
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.4;">
+                    Point any smartphone camera to view live scores and round history in read-only mode.
+                </p>
+
+                <!-- High-contrast QR card -->
+                <div class="qr-card-wrap">
+                    <div id="qrcode-display-box"></div>
+                </div>
+
+                <div class="peer-status-pill" id="peer-host-status">
+                    <span class="pulse-dot"></span>
+                    <span id="peer-host-count">0 Spectators Connected</span>
+                </div>
+
+                <div style="width: 100%; display: flex; gap: 8px;">
+                    <button class="btn-secondary-apple" style="flex: 1;" onclick="copySpectatorUrl()">Copy Link</button>
+                    <button class="btn-primary-apple" style="flex: 1;" onclick="closeLiveQrModal()">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Apple-style Toast -->
     <div id="apple-toast">Notification</div>
+
+    <!-- WebRTC PeerJS & QRCode Libraries -->
+    <script src="vendor/peerjs.min.js"></script>
+    <script src="vendor/qrcode.min.js"></script>
+    <script>
+        if (typeof Peer === 'undefined') {
+            document.write('<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"><\/script>');
+        }
+        if (typeof QRCode === 'undefined') {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>');
+        }
+    </script>
 
     <script>
         // ============================================================
@@ -1535,6 +1729,17 @@
         let editAmount = 0;
         let editType = null;
         let editBonus = null;
+
+        // WebRTC & Live QR State
+        let hostPeer = null;
+        let hostRoomId = null;
+        let activeSpectatorConns = new Set();
+        let qrCodeInstance = null;
+
+        let spectatorPeer = null;
+        let spectatorConn = null;
+        let spectatorTableData = null;
+        let activeSpectatorTab = 'scores';
 
         // 3-Card Poker Core Calculations
         function calculateBase(amount, type) {
@@ -1691,6 +1896,7 @@
             document.getElementById('view-games-board').classList.add('hidden');
             document.getElementById('view-game-hub').classList.add('hidden');
             document.getElementById('view-table-ledger').classList.add('hidden');
+            document.getElementById('view-spectator').classList.add('hidden');
 
             const backBtn = document.getElementById('nav-back-button');
             const navTitle = document.getElementById('nav-title');
@@ -1722,6 +1928,9 @@
                 navBadge.textContent = 'Table';
                 const tableId = currentTable ? (currentTable.slug || currentTable.id) : '';
                 navActions.innerHTML = `
+                    <button class="btn-subtle" onclick="openLiveQrModal()" title="Show Live Spectator QR Code">
+                        <span>📺 Spectator QR</span>
+                    </button>
                     <div class="table-id-pill" id="table-id-pill" onclick="copyTableId()" title="Click to copy Table ID">
                         <span class="id-prefix">ID:</span>
                         <span class="id-value" id="table-id-value">${escapeHtml(tableId)}</span>
@@ -1729,10 +1938,12 @@
                 `;
                 renderTableLedger();
                 updateUrlParams(currentGame, currentTable);
+                initHostPeer();
             }
         }
 
         function handleNavBack() {
+            closeLiveQrModal();
             const tableLedger = document.getElementById('view-table-ledger');
             const gameHub = document.getElementById('view-game-hub');
 
@@ -2377,6 +2588,7 @@
 
             persistCurrentGame();
             renderTableLedger();
+            broadcastTableState();
             toast(`Round ${(currentTable.currentRound - 1)} saved`);
         }
 
@@ -2396,6 +2608,7 @@
             currentTable.currentRound = Math.max(1, (currentTable.currentRound || 1) - 1);
             persistCurrentGame();
             renderTableLedger();
+            broadcastTableState();
             toast(`Round ${currentTable.currentRound} undone`);
         }
 
@@ -2547,8 +2760,371 @@
 
             persistCurrentGame();
             renderTableLedger();
+            broadcastTableState();
             closeEditModal();
             toast('Score updated');
+        }
+
+        document.getElementById('edit-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeEditModal();
+        });
+
+        // ============================================================
+        // WEBRTC PEER-TO-PEER & SPECTATOR DISPLAY
+        // ============================================================
+        function initHostPeer() {
+            if (!currentTable || !currentGame) return;
+
+            const baseRoom = `3cp-${currentGame.slug || slugify(currentGame.name)}-${currentTable.slug || slugify(currentTable.name)}`;
+            if (hostPeer && hostRoomId === baseRoom && !hostPeer.destroyed) {
+                return;
+            }
+
+            if (hostPeer) {
+                try { hostPeer.destroy(); } catch {}
+            }
+
+            hostRoomId = baseRoom;
+            activeSpectatorConns.clear();
+
+            if (typeof Peer === 'undefined') {
+                console.warn('PeerJS library not loaded');
+                return;
+            }
+
+            try {
+                hostPeer = new Peer(hostRoomId, {
+                    debug: 0,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' }
+                        ]
+                    }
+                });
+
+                hostPeer.on('open', (id) => {
+                    hostRoomId = id;
+                    updateHostSpectatorCount();
+                });
+
+                hostPeer.on('connection', (conn) => {
+                    activeSpectatorConns.add(conn);
+                    updateHostSpectatorCount();
+
+                    conn.on('open', () => {
+                        conn.send({
+                            type: 'SYNC_STATE',
+                            gameName: currentGame ? currentGame.name : '',
+                            tableName: currentTable ? currentTable.name : '',
+                            table: currentTable
+                        });
+                    });
+
+                    conn.on('close', () => {
+                        activeSpectatorConns.delete(conn);
+                        updateHostSpectatorCount();
+                    });
+
+                    conn.on('error', () => {
+                        activeSpectatorConns.delete(conn);
+                        updateHostSpectatorCount();
+                    });
+                });
+
+                hostPeer.on('error', (err) => {
+                    if (err.type === 'unavailable-id') {
+                        hostRoomId = `${baseRoom}-${Math.floor(Date.now() / 1000) % 10000}`;
+                        hostPeer = new Peer(hostRoomId, {
+                            debug: 0,
+                            config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+                        });
+                        hostPeer.on('open', (id) => {
+                            hostRoomId = id;
+                            if (document.getElementById('modal-live-qr') && !document.getElementById('modal-live-qr').classList.contains('hidden')) {
+                                renderQrCode();
+                            }
+                        });
+                    }
+                });
+            } catch (e) {
+                console.warn('Host Peer init error:', e);
+            }
+        }
+
+        function broadcastTableState() {
+            if (!currentTable || activeSpectatorConns.size === 0) return;
+            const payload = {
+                type: 'SYNC_STATE',
+                gameName: currentGame ? currentGame.name : '',
+                tableName: currentTable ? currentTable.name : '',
+                table: currentTable
+            };
+            activeSpectatorConns.forEach(conn => {
+                if (conn.open) {
+                    try { conn.send(payload); } catch {}
+                }
+            });
+        }
+
+        function updateHostSpectatorCount() {
+            const el = document.getElementById('peer-host-count');
+            if (el) {
+                const count = activeSpectatorConns.size;
+                el.textContent = `${count} ${count === 1 ? 'Spectator' : 'Spectators'} Connected`;
+            }
+        }
+
+        function openLiveQrModal() {
+            if (!currentTable) return;
+            initHostPeer();
+            document.getElementById('modal-live-qr').classList.remove('hidden');
+            renderQrCode();
+        }
+
+        function closeLiveQrModal() {
+            const el = document.getElementById('modal-live-qr');
+            if (el) el.classList.add('hidden');
+        }
+
+        function getSpectatorUrl() {
+            const origin = window.location.origin;
+            const pathname = window.location.pathname;
+            const room = hostRoomId || `3cp-${currentGame ? (currentGame.slug || slugify(currentGame.name)) : 'game'}-${currentTable ? (currentTable.slug || slugify(currentTable.name)) : 'table'}`;
+            return `${origin}${pathname}?room=${encodeURIComponent(room)}&mode=spectator`;
+        }
+
+        function renderQrCode() {
+            const box = document.getElementById('qrcode-display-box');
+            if (!box) return;
+            box.innerHTML = '';
+            const url = getSpectatorUrl();
+
+            if (typeof QRCode !== 'undefined') {
+                new QRCode(box, {
+                    text: url,
+                    width: 200,
+                    height: 200,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            } else {
+                box.innerHTML = `<div style="padding:16px; color:#333; font-size:12px; font-weight:600;">Open on spectator device:<br><a href="${url}" target="_blank" style="color:#0a84ff; word-break:break-all;">${url}</a></div>`;
+            }
+        }
+
+        function copySpectatorUrl() {
+            const url = getSpectatorUrl();
+            navigator.clipboard.writeText(url).then(() => toast('Spectator link copied!'));
+        }
+
+        // ============================================================
+        // SPECTATOR MODE LOGIC (VIEW-ONLY, NO EDIT ACCESS)
+        // ============================================================
+        function startSpectatorMode(roomId) {
+            document.getElementById('view-games-board').classList.add('hidden');
+            document.getElementById('view-game-hub').classList.add('hidden');
+            document.getElementById('view-table-ledger').classList.add('hidden');
+            document.getElementById('view-spectator').classList.remove('hidden');
+
+            const backBtn = document.getElementById('nav-back-button');
+            if (backBtn) backBtn.classList.add('hidden');
+
+            document.getElementById('nav-title').textContent = 'Live Scoreboard';
+            document.getElementById('nav-badge').textContent = 'Spectator';
+            document.getElementById('nav-actions-container').innerHTML = `
+                <span class="live-pulse-badge">
+                    <span class="pulse-dot"></span> LIVE
+                </span>
+            `;
+
+            connectSpectatorPeer(roomId);
+        }
+
+        function connectSpectatorPeer(roomId) {
+            const statusEl = document.getElementById('spectator-conn-status');
+            if (statusEl) {
+                statusEl.textContent = 'Connecting to table...';
+                statusEl.style.color = 'var(--text-secondary)';
+            }
+
+            if (typeof Peer === 'undefined') {
+                if (statusEl) statusEl.textContent = 'Loading engine...';
+                setTimeout(() => connectSpectatorPeer(roomId), 1000);
+                return;
+            }
+
+            try {
+                spectatorPeer = new Peer({
+                    debug: 0,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' }
+                        ]
+                    }
+                });
+
+                spectatorPeer.on('open', () => {
+                    const conn = spectatorPeer.connect(roomId, { reliable: true });
+                    spectatorConn = conn;
+
+                    conn.on('open', () => {
+                        if (statusEl) {
+                            statusEl.textContent = 'Connected · Live Syncing';
+                            statusEl.style.color = 'var(--accent-green)';
+                        }
+                    });
+
+                    conn.on('data', (data) => {
+                        if (data && data.type === 'SYNC_STATE') {
+                            spectatorTableData = data.table;
+                            const titleEl = document.getElementById('spectator-table-title');
+                            if (titleEl) {
+                                titleEl.textContent = `${data.tableName || 'Table'} · ${data.gameName || 'Game'}`;
+                            }
+                            renderSpectatorDisplay();
+                        }
+                    });
+
+                    conn.on('close', () => {
+                        if (statusEl) {
+                            statusEl.textContent = 'Connection paused · Reconnecting...';
+                            statusEl.style.color = 'var(--accent-orange)';
+                        }
+                        setTimeout(() => connectSpectatorPeer(roomId), 2500);
+                    });
+
+                    conn.on('error', () => {
+                        if (statusEl) {
+                            statusEl.textContent = 'Reconnecting to table...';
+                            statusEl.style.color = 'var(--accent-orange)';
+                        }
+                        setTimeout(() => connectSpectatorPeer(roomId), 3000);
+                    });
+                });
+
+                spectatorPeer.on('error', () => {
+                    if (statusEl) {
+                        statusEl.textContent = 'Waiting for table host to open session...';
+                        statusEl.style.color = 'var(--text-secondary)';
+                    }
+                    setTimeout(() => connectSpectatorPeer(roomId), 4000);
+                });
+            } catch (e) {
+                console.warn('Spectator peer connect error:', e);
+            }
+        }
+
+        function renderSpectatorDisplay() {
+            if (!spectatorTableData) return;
+            const table = spectatorTableData;
+
+            // Dealer Net Hero Card
+            const playersTotal = table.players ? table.players.reduce((sum, p) => sum + p.balance, 0) : 0;
+            const dealerNet = -playersTotal;
+
+            const heroDisplay = document.getElementById('spectator-dealer-hero-display');
+            if (heroDisplay) {
+                heroDisplay.textContent = `${dealerNet >= 0 ? '+' : ''}₹${dealerNet.toLocaleString()}`;
+                heroDisplay.className = `dealer-val ${dealerNet > 0 ? 'color-positive' : (dealerNet < 0 ? 'color-negative' : 'color-neutral')}`;
+            }
+
+            const subText = document.getElementById('spectator-dealer-sub-text');
+            if (subText) {
+                subText.textContent = dealerNet > 0 ? 'Dealer Ahead' : (dealerNet < 0 ? 'Players Ahead' : 'Even Table');
+            }
+
+            const roundTag = document.getElementById('spectator-round-tag');
+            if (roundTag) {
+                roundTag.textContent = `Round ${table.currentRound || 1}`;
+            }
+
+            // Player Score Tiles Grid
+            const grid = document.getElementById('spectator-player-tiles-grid');
+            if (grid && table.players) {
+                grid.innerHTML = '';
+                table.players.forEach(p => {
+                    const card = document.createElement('div');
+                    card.className = 'player-tile';
+                    const colorClass = p.balance > 0 ? 'color-positive' : (p.balance < 0 ? 'color-negative' : 'color-neutral');
+                    card.innerHTML = `
+                        <span class="tile-name" title="${p.name}">${escapeHtml(p.name)}</span>
+                        <span class="tile-val ${colorClass}">
+                            ${p.balance >= 0 ? '+' : ''}₹${p.balance.toLocaleString()}
+                        </span>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+
+            // Scoreboard Rounds Table
+            renderSpectatorRoundsTable();
+        }
+
+        function renderSpectatorRoundsTable() {
+            if (!spectatorTableData) return;
+            const table = spectatorTableData;
+
+            const thead = document.getElementById('spec-ledger-thead');
+            const tbody = document.getElementById('spec-ledger-tbody');
+            const tfoot = document.getElementById('spec-ledger-tfoot');
+            if (!thead || !tbody || !tfoot) return;
+
+            if (!table.rounds || table.rounds.length === 0) {
+                thead.innerHTML = '';
+                tbody.innerHTML = `<tr><td colspan="${(table.players ? table.players.length : 0) + 1}" style="padding: 28px; text-align:center; color: var(--text-tertiary);">No rounds played yet</td></tr>`;
+                tfoot.innerHTML = '';
+                return;
+            }
+
+            // Head
+            let head = '<tr><th>Rnd</th>';
+            table.players.forEach(p => head += `<th>${escapeHtml(p.name)}</th>`);
+            head += '</tr>';
+            thead.innerHTML = head;
+
+            // Body (Strictly Read-Only, no click/edit handlers)
+            let body = '';
+            table.rounds.forEach(r => {
+                body += `<tr><td class="col-round">#${r.round}</td>`;
+                r.details.forEach(d => {
+                    const s = d.score;
+                    const color = s > 0 ? 'color-positive' : (s < 0 ? 'color-negative' : 'color-neutral');
+                    const prefix = s > 0 ? '+' : '';
+                    let tag = '';
+                    if (d.type) {
+                        const abbr = { 'W': 'W', 'DNQ': 'DNQ', 'C': 'DNQ', 'FOLD': 'Fold', 'D': 'Fold', 'L': 'L' }[d.type] || d.type;
+                        tag = `<span class="score-subtag">(${abbr}${d.bonus ? '+' + d.bonus + 'x' : ''})</span>`;
+                    }
+                    body += `<td class="col-score ${color}" style="cursor: default;">${prefix}₹${s.toLocaleString()}${tag}</td>`;
+                });
+                body += '</tr>';
+            });
+            tbody.innerHTML = body;
+
+            // Foot
+            let foot = '<tr class="table-total-row"><td>Total</td>';
+            table.players.forEach(p => {
+                const color = p.balance > 0 ? 'color-positive' : (p.balance < 0 ? 'color-negative' : 'color-neutral');
+                foot += `<td class="${color}">${p.balance >= 0 ? '+' : ''}₹${p.balance.toLocaleString()}</td>`;
+            });
+            foot += '</tr>';
+            tfoot.innerHTML = foot;
+        }
+
+        function switchSpectatorTab(tabName) {
+            activeSpectatorTab = tabName;
+            const tabScores = document.getElementById('spec-tab-scores');
+            const tabRounds = document.getElementById('spec-tab-rounds');
+            const contentScores = document.getElementById('spec-content-scores');
+            const contentRounds = document.getElementById('spec-content-rounds');
+
+            if (tabScores) tabScores.classList.toggle('active', tabName === 'scores');
+            if (tabRounds) tabRounds.classList.toggle('active', tabName === 'rounds');
+            if (contentScores) contentScores.classList.toggle('hidden', tabName !== 'scores');
+            if (contentRounds) contentRounds.classList.toggle('hidden', tabName !== 'rounds');
         }
 
         document.getElementById('edit-modal').addEventListener('click', function(e) {
@@ -2574,6 +3150,15 @@
 
             // Check URL parameters for direct link navigation
             const params = new URLSearchParams(window.location.search);
+            const mode = params.get('mode');
+            const room = params.get('room');
+
+            // Spectator mode: pure read-only glanceable display
+            if (mode === 'spectator' && room) {
+                startSpectatorMode(room);
+                return;
+            }
+
             const gameParam = params.get('game');
             const tableParam = params.get('table');
 
