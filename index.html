@@ -1671,15 +1671,21 @@
 
     <!-- Modal 4: Live Spectator QR Code -->
     <div class="modal-scrim hidden" id="modal-live-qr">
-        <div class="modal-sheet" style="max-width: 380px; text-align: center;">
+        <div class="modal-sheet" style="max-width: 420px; text-align: center;">
             <div class="modal-sheet-header">
                 <span class="modal-sheet-title">Spectator QR Display</span>
                 <button class="modal-sheet-close" onclick="closeLiveQrModal()">&times;</button>
             </div>
-            <div class="modal-sheet-body" style="display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 22px;">
+            <div class="modal-sheet-body" style="display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px;">
                 <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.4;">
                     Point any smartphone camera to view live scores and round history in read-only mode.
                 </p>
+
+                <!-- Network Destination Switcher -->
+                <div class="tab-switcher" style="width: 100%;">
+                    <button type="button" class="tab-btn active" id="qr-target-wifi" onclick="setQrNetworkTarget('wifi')">Home Wi-Fi (192.168.1.10)</button>
+                    <button type="button" class="tab-btn" id="qr-target-gh" onclick="setQrNetworkTarget('gh')">GitHub Pages</button>
+                </div>
 
                 <!-- High-contrast QR card -->
                 <div class="qr-card-wrap">
@@ -1689,6 +1695,12 @@
                 <div class="peer-status-pill" id="peer-host-status">
                     <span class="pulse-dot"></span>
                     <span id="peer-host-count">0 Spectators Connected</span>
+                </div>
+
+                <!-- URL Preview & Editable Host IP -->
+                <div style="width: 100%; text-align: left;">
+                    <label style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; display: block;">Spectator URL</label>
+                    <input type="text" id="spectator-url-preview" style="width: 100%; font-size: 11px; font-family: ui-monospace, monospace; padding: 8px 10px; background: rgba(0,0,0,0.4); border: 0.5px solid var(--border-hairline); border-radius: 8px; color: var(--accent-blue);" onchange="onSpectatorUrlManualEdit(this.value)" onclick="this.select()">
                 </div>
 
                 <div style="width: 100%; display: flex; gap: 8px;">
@@ -2772,19 +2784,67 @@
         // ============================================================
         // WEBRTC PEER-TO-PEER & SPECTATOR DISPLAY
         // ============================================================
+        let qrNetworkTarget = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'wifi' : 'gh';
+        let localWifiHost = '192.168.1.10:8000';
+
+        function getTableRoomId() {
+            if (!currentTable) return '3cp-room';
+            if (!currentTable.peerRoomId) {
+                const rand = Math.random().toString(36).substring(2, 7);
+                const gSlug = currentGame ? (currentGame.slug || slugify(currentGame.name)) : 'game';
+                const tSlug = currentTable.slug || slugify(currentTable.name);
+                currentTable.peerRoomId = `3cp-${gSlug}-${tSlug}-${rand}`;
+                persistCurrentGame();
+            }
+            return currentTable.peerRoomId;
+        }
+
+        function setQrNetworkTarget(target) {
+            qrNetworkTarget = target;
+            const btnWifi = document.getElementById('qr-target-wifi');
+            const btnGh = document.getElementById('qr-target-gh');
+            if (btnWifi) btnWifi.classList.toggle('active', target === 'wifi');
+            if (btnGh) btnGh.classList.toggle('active', target === 'gh');
+            renderQrCode();
+        }
+
+        function onSpectatorUrlManualEdit(val) {
+            if (!val) return;
+            try {
+                const u = new URL(val);
+                localWifiHost = u.host;
+                renderQrCode();
+            } catch {}
+        }
+
+        function getSpectatorUrl() {
+            const room = getTableRoomId();
+            let base = '';
+            if (qrNetworkTarget === 'gh') {
+                base = 'https://vamsi1133.github.io/scoreboard';
+            } else if (qrNetworkTarget === 'wifi') {
+                base = `http://${localWifiHost}`;
+            } else {
+                base = window.location.origin + window.location.pathname.replace(/\/index\.html$/, '');
+            }
+            return `${base}/index.html?room=${encodeURIComponent(room)}&mode=spectator`;
+        }
+
         function initHostPeer() {
             if (!currentTable || !currentGame) return;
 
-            const baseRoom = `3cp-${currentGame.slug || slugify(currentGame.name)}-${currentTable.slug || slugify(currentTable.name)}`;
-            if (hostPeer && hostRoomId === baseRoom && !hostPeer.destroyed) {
+            const roomId = getTableRoomId();
+
+            // If hostPeer already running with this ID and alive, keep it! Do not recreate!
+            if (hostPeer && !hostPeer.destroyed && hostRoomId === roomId) {
                 return;
             }
 
-            if (hostPeer) {
+            if (hostPeer && !hostPeer.destroyed) {
                 try { hostPeer.destroy(); } catch {}
             }
 
-            hostRoomId = baseRoom;
+            hostRoomId = roomId;
             activeSpectatorConns.clear();
 
             if (typeof Peer === 'undefined') {
@@ -2794,7 +2854,7 @@
 
             try {
                 hostPeer = new Peer(hostRoomId, {
-                    debug: 0,
+                    debug: 1,
                     config: {
                         iceServers: [
                             { urls: 'stun:stun.l.google.com:19302' },
@@ -2804,21 +2864,45 @@
                 });
 
                 hostPeer.on('open', (id) => {
+                    console.log('Host Peer open with ID:', id);
                     hostRoomId = id;
                     updateHostSpectatorCount();
+                    const preview = document.getElementById('spectator-url-preview');
+                    if (preview) preview.value = getSpectatorUrl();
                 });
 
-                hostPeer.on('connection', (conn) => {
-                    activeSpectatorConns.add(conn);
-                    updateHostSpectatorCount();
-
-                    conn.on('open', () => {
+                function sendTableSnapshot(conn) {
+                    if (!conn) return;
+                    try {
                         conn.send({
                             type: 'SYNC_STATE',
                             gameName: currentGame ? currentGame.name : '',
                             tableName: currentTable ? currentTable.name : '',
                             table: currentTable
                         });
+                    } catch (err) {
+                        console.warn('Error sending table snapshot:', err);
+                    }
+                }
+
+                hostPeer.on('connection', (conn) => {
+                    console.log('Host connected to spectator peer:', conn.peer);
+                    activeSpectatorConns.add(conn);
+                    updateHostSpectatorCount();
+
+                    // If already open, send immediately!
+                    if (conn.open) {
+                        sendTableSnapshot(conn);
+                    } else {
+                        conn.on('open', () => sendTableSnapshot(conn));
+                    }
+
+                    // Respond to explicit request from spectator
+                    conn.on('data', (msg) => {
+                        console.log('Host received message from spectator:', msg);
+                        if (msg && msg.type === 'REQ_STATE') {
+                            sendTableSnapshot(conn);
+                        }
                     });
 
                     conn.on('close', () => {
@@ -2833,19 +2917,7 @@
                 });
 
                 hostPeer.on('error', (err) => {
-                    if (err.type === 'unavailable-id') {
-                        hostRoomId = `${baseRoom}-${Math.floor(Date.now() / 1000) % 10000}`;
-                        hostPeer = new Peer(hostRoomId, {
-                            debug: 0,
-                            config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
-                        });
-                        hostPeer.on('open', (id) => {
-                            hostRoomId = id;
-                            if (document.getElementById('modal-live-qr') && !document.getElementById('modal-live-qr').classList.contains('hidden')) {
-                                renderQrCode();
-                            }
-                        });
-                    }
+                    console.warn('Host Peer error:', err);
                 });
             } catch (e) {
                 console.warn('Host Peer init error:', e);
@@ -2887,18 +2959,14 @@
             if (el) el.classList.add('hidden');
         }
 
-        function getSpectatorUrl() {
-            const origin = window.location.origin;
-            const pathname = window.location.pathname;
-            const room = hostRoomId || `3cp-${currentGame ? (currentGame.slug || slugify(currentGame.name)) : 'game'}-${currentTable ? (currentTable.slug || slugify(currentTable.name)) : 'table'}`;
-            return `${origin}${pathname}?room=${encodeURIComponent(room)}&mode=spectator`;
-        }
-
         function renderQrCode() {
             const box = document.getElementById('qrcode-display-box');
             if (!box) return;
             box.innerHTML = '';
             const url = getSpectatorUrl();
+
+            const preview = document.getElementById('spectator-url-preview');
+            if (preview) preview.value = url;
 
             if (typeof QRCode !== 'undefined') {
                 new QRCode(box, {
@@ -2955,9 +3023,13 @@
                 return;
             }
 
+            if (spectatorPeer && !spectatorPeer.destroyed) {
+                try { spectatorPeer.destroy(); } catch {}
+            }
+
             try {
                 spectatorPeer = new Peer({
-                    debug: 0,
+                    debug: 1,
                     config: {
                         iceServers: [
                             { urls: 'stun:stun.l.google.com:19302' },
@@ -2966,18 +3038,29 @@
                     }
                 });
 
-                spectatorPeer.on('open', () => {
+                spectatorPeer.on('open', (id) => {
+                    console.log('Spectator Peer open with ID:', id, 'connecting to room:', roomId);
                     const conn = spectatorPeer.connect(roomId, { reliable: true });
                     spectatorConn = conn;
 
-                    conn.on('open', () => {
+                    function onConnected() {
+                        console.log('Spectator connected to host successfully!');
                         if (statusEl) {
                             statusEl.textContent = 'Connected · Live Syncing';
                             statusEl.style.color = 'var(--accent-green)';
                         }
-                    });
+                        // Request state snapshot immediately!
+                        try { conn.send({ type: 'REQ_STATE' }); } catch {}
+                    }
+
+                    if (conn.open) {
+                        onConnected();
+                    } else {
+                        conn.on('open', onConnected);
+                    }
 
                     conn.on('data', (data) => {
+                        console.log('Spectator received data from host:', data);
                         if (data && data.type === 'SYNC_STATE') {
                             spectatorTableData = data.table;
                             const titleEl = document.getElementById('spectator-table-title');
@@ -2996,7 +3079,8 @@
                         setTimeout(() => connectSpectatorPeer(roomId), 2500);
                     });
 
-                    conn.on('error', () => {
+                    conn.on('error', (err) => {
+                        console.warn('Spectator conn error:', err);
                         if (statusEl) {
                             statusEl.textContent = 'Reconnecting to table...';
                             statusEl.style.color = 'var(--accent-orange)';
@@ -3005,7 +3089,8 @@
                     });
                 });
 
-                spectatorPeer.on('error', () => {
+                spectatorPeer.on('error', (err) => {
+                    console.warn('Spectator peer error:', err);
                     if (statusEl) {
                         statusEl.textContent = 'Waiting for table host to open session...';
                         statusEl.style.color = 'var(--text-secondary)';
