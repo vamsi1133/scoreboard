@@ -2877,10 +2877,11 @@
                 currentTable.peerRoomId = `3cp-${gSlug}-${tSlug}-${rand}`;
                 persistCurrentGame();
             }
-            return currentTable.peerRoomId;
+            return qrNetworkTarget === 'wifi' ? `${currentTable.peerRoomId}-lan` : currentTable.peerRoomId;
         }
 
         function setQrNetworkTarget(target) {
+            const previousTarget = qrNetworkTarget;
             qrNetworkTarget = target;
             const btnWifi = document.getElementById('qr-target-wifi');
             const btnGh = document.getElementById('qr-target-gh');
@@ -2910,7 +2911,11 @@
                 }
             } else {
                 if (lanNotice) lanNotice.classList.add('hidden');
-                broadcastTableState();
+            }
+
+            // When switching network modes, re-initialize host peer with the new scoped room ID
+            if (previousTarget !== target) {
+                initHostPeer(true);
             }
 
             renderQrCode();
@@ -2938,13 +2943,13 @@
             return `${base}/index.html?room=${encodeURIComponent(room)}&mode=spectator`;
         }
 
-        function initHostPeer() {
+        function initHostPeer(forceReinit = false) {
             if (!currentTable || !currentGame) return;
 
             const roomId = getTableRoomId();
 
-            // If hostPeer already running with this ID and alive, keep it! Do not recreate!
-            if (hostPeer && !hostPeer.destroyed && hostRoomId === roomId) {
+            // If hostPeer already running with this ID and alive, keep it unless forced
+            if (!forceReinit && hostPeer && !hostPeer.destroyed && hostRoomId === roomId) {
                 return;
             }
 
@@ -3238,6 +3243,10 @@
                     });
 
                     conn.on('close', () => {
+                        if (spectatorTableDisabled) {
+                            // Do not reconnect in a loop if host disabled or isolated table
+                            return;
+                        }
                         if (statusEl) {
                             statusEl.textContent = 'Connection paused · Reconnecting...';
                             statusEl.style.color = 'var(--accent-orange)';
