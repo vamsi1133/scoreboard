@@ -1617,9 +1617,12 @@
                 <p id="spec-disabled-submsg" style="font-size: 14px; color: var(--text-secondary); max-width: 340px; line-height: 1.5;">
                     The table host has paused live score broadcasting. Scores and round history are temporarily hidden.
                 </p>
-                <div style="margin-top: 10px; font-size: 13px; color: var(--accent-orange); display: flex; align-items: center; gap: 8px; background: rgba(255, 159, 10, 0.1); padding: 8px 16px; border-radius: 980px; border: 0.5px solid rgba(255, 159, 10, 0.25);">
-                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-orange);"></span>
-                    Waiting for host to resume live sharing...
+                <button type="button" class="btn-primary-blue" id="btn-reconnect-wifi" onclick="retrySpectatorConnect()" style="display:inline-flex; align-items:center; gap:8px; padding:10px 22px; font-size:14px; border-radius:980px; margin-top:4px;">
+                    <span>🔄</span> <span>Reconnect on Wi-Fi</span>
+                </button>
+                <div style="margin-top: 6px; font-size: 12px; color: var(--text-tertiary); display: flex; align-items: center; gap: 6px;">
+                    <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-orange);"></span>
+                    Auto-checking for host Wi-Fi connection...
                 </div>
             </div>
         </div>
@@ -3173,7 +3176,10 @@
             connectSpectatorPeer(roomId);
         }
 
+        let activeSpectatorRoomId = '';
+
         function connectSpectatorPeer(roomId) {
+            activeSpectatorRoomId = roomId;
             const statusEl = document.getElementById('spectator-conn-status');
             if (statusEl) {
                 statusEl.textContent = 'Connecting to table...';
@@ -3208,11 +3214,11 @@
 
                     function onConnected() {
                         console.log('Spectator connected to host successfully!');
+                        spectatorTableDisabled = false;
                         if (statusEl) {
                             statusEl.textContent = 'Connected · Live Syncing';
                             statusEl.style.color = 'var(--accent-green)';
                         }
-                        // Request state snapshot immediately!
                         try { conn.send({ type: 'REQ_STATE' }); } catch {}
                     }
 
@@ -3230,7 +3236,7 @@
                             if (titleEl && data.tableName) {
                                 titleEl.textContent = `${data.tableName || 'Table'} · ${data.gameName || 'Game'}`;
                             }
-                            renderSpectatorDisabledScreen();
+                            renderSpectatorDisabledScreen(data.reason || data.message);
                         } else if (data && data.type === 'SYNC_STATE') {
                             spectatorTableDisabled = false;
                             spectatorTableData = data.table;
@@ -3244,7 +3250,12 @@
 
                     conn.on('close', () => {
                         if (spectatorTableDisabled) {
-                            // Do not reconnect in a loop if host disabled or isolated table
+                            // If isolated to LAN, attempt graceful background check to -lan after 4 seconds
+                            setTimeout(() => {
+                                const base = (roomId || '').replace(/-lan$/, '');
+                                const target = roomId.endsWith('-lan') ? base : `${base}-lan`;
+                                connectSpectatorPeer(target);
+                            }, 4000);
                             return;
                         }
                         if (statusEl) {
@@ -3256,26 +3267,47 @@
 
                     conn.on('error', (err) => {
                         console.warn('Spectator conn error:', err);
-                        if (statusEl) {
-                            statusEl.textContent = 'Reconnecting to table...';
-                            statusEl.style.color = 'var(--accent-orange)';
-                        }
-                        setTimeout(() => connectSpectatorPeer(roomId), 3000);
+                        const base = (roomId || '').replace(/-lan$/, '');
+                        const alt = roomId.endsWith('-lan') ? base : `${base}-lan`;
+                        setTimeout(() => connectSpectatorPeer(alt), 3000);
                     });
                 });
 
                 spectatorPeer.on('error', (err) => {
                     console.warn('Spectator peer error:', err);
-                    if (statusEl) {
-                        statusEl.textContent = 'Waiting for table host to open session...';
-                        statusEl.style.color = 'var(--text-secondary)';
+                    const base = (roomId || '').replace(/-lan$/, '');
+                    const alt = roomId.endsWith('-lan') ? base : `${base}-lan`;
+                    if (err.type === 'peer-unavailable') {
+                        setTimeout(() => connectSpectatorPeer(alt), 2500);
+                    } else {
+                        if (statusEl) {
+                            statusEl.textContent = 'Waiting for table host to open session...';
+                            statusEl.style.color = 'var(--text-secondary)';
+                        }
+                        setTimeout(() => connectSpectatorPeer(alt), 4000);
                     }
-                    setTimeout(() => connectSpectatorPeer(roomId), 4000);
                 });
             } catch (e) {
                 console.warn('Spectator peer connect error:', e);
             }
         }
+
+        function retrySpectatorConnect() {
+            spectatorTableDisabled = false;
+            const statusEl = document.getElementById('spectator-conn-status');
+            if (statusEl) {
+                statusEl.textContent = 'Reconnecting on Wi-Fi...';
+                statusEl.style.color = 'var(--accent-blue)';
+            }
+            const base = (activeSpectatorRoomId || '').replace(/-lan$/, '');
+            connectSpectatorPeer(base ? `${base}-lan` : activeSpectatorRoomId);
+        }
+
+        window.addEventListener('online', () => {
+            if (spectatorTableDisabled) {
+                retrySpectatorConnect();
+            }
+        });
 
         let spectatorTableDisabled = false;
 
