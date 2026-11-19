@@ -1261,6 +1261,46 @@
             border-radius: 980px;
         }
 
+        /* Apple Style Toggle Switch */
+        .switch-apple {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 26px;
+            flex-shrink: 0;
+        }
+        .switch-apple input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider-apple {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(120, 120, 128, 0.32);
+            transition: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            border-radius: 26px;
+        }
+        .slider-apple:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 2px;
+            bottom: 2px;
+            background-color: #ffffff;
+            transition: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+        }
+        .switch-apple input:checked + .slider-apple {
+            background-color: var(--accent-green);
+        }
+        .switch-apple input:checked + .slider-apple:before {
+            transform: translateX(18px);
+        }
+
         .qr-card-wrap {
             background: #ffffff;
             padding: 18px;
@@ -1351,6 +1391,7 @@
                 <p style="font-size:13px; max-width:320px;">Tap "+ New Game" to name and start your first 3-card poker game.</p>
                 <button class="btn-primary-blue" style="margin-top:6px;" onclick="openNewGameModal()">+ New Game</button>
             </div>
+
         </div>
     </main>
 
@@ -1514,15 +1555,15 @@
             <!-- Spectator Top Status Banner -->
             <div class="spectator-header">
                 <div class="spectator-title-group">
-                    <span class="live-pulse-badge">
-                        <span class="pulse-dot"></span> LIVE
+                    <span class="live-pulse-badge" id="spectator-live-badge">
+                        <span class="pulse-dot" id="spectator-pulse-dot"></span> <span id="spectator-badge-text">LIVE</span>
                     </span>
                     <h1 id="spectator-table-title" style="font-size:20px; font-weight:700;">Table 1</h1>
                     <span id="spectator-conn-status" style="font-size:12px; color:var(--text-secondary);">Connecting to table...</span>
                 </div>
 
                 <!-- Spectator Tab Switcher (Live Scores vs Scoreboard Rounds) -->
-                <div class="tab-switcher">
+                <div class="tab-switcher" id="spectator-tab-switcher">
                     <button class="tab-btn active" id="spec-tab-scores" onclick="switchSpectatorTab('scores')">Live Scores</button>
                     <button class="tab-btn" id="spec-tab-rounds" onclick="switchSpectatorTab('rounds')">Scoreboard Rounds</button>
                 </div>
@@ -1564,6 +1605,21 @@
                             <tfoot id="spec-ledger-tfoot"></tfoot>
                         </table>
                     </div>
+                </div>
+            </div>
+
+            <!-- Spectator Default / Paused State (When Host Disables Sharing) -->
+            <div id="spec-content-disabled" class="hidden" style="text-align: center; padding: 70px 20px 90px; display: flex; flex-direction: column; align-items: center; gap: 18px;">
+                <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(255, 159, 10, 0.15); display: flex; align-items: center; justify-content: center; font-size: 32px; margin-bottom: 4px;">
+                    🔒
+                </div>
+                <h2 style="font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.4px;">Live Display Paused</h2>
+                <p style="font-size: 14px; color: var(--text-secondary); max-width: 340px; line-height: 1.5;">
+                    The table host has paused live score broadcasting. Scores and round history are temporarily hidden.
+                </p>
+                <div style="margin-top: 10px; font-size: 13px; color: var(--accent-orange); display: flex; align-items: center; gap: 8px; background: rgba(255, 159, 10, 0.1); padding: 8px 16px; border-radius: 980px; border: 0.5px solid rgba(255, 159, 10, 0.25);">
+                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-orange);"></span>
+                    Waiting for host to resume live sharing...
                 </div>
             </div>
         </div>
@@ -1677,8 +1733,20 @@
                 <button class="modal-sheet-close" onclick="closeLiveQrModal()">&times;</button>
             </div>
             <div class="modal-sheet-body" style="display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px;">
-                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.4;">
-                    Point any smartphone camera to view live scores and round history in read-only mode.
+                <!-- Live Broadcast Toggle Card -->
+                <div style="width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--bg-surface-elevated); border: 0.5px solid var(--border-hairline); border-radius: var(--radius-md);">
+                    <div style="text-align: left;">
+                        <div style="font-size: 14px; font-weight: 600; color: #fff;">Live Spectator Sharing</div>
+                        <div id="qr-broadcast-status-label" style="font-size: 11px; color: var(--accent-green);">Broadcasting live scores</div>
+                    </div>
+                    <label class="switch-apple" title="Toggle live score sharing">
+                        <input type="checkbox" id="toggle-spectator-sharing" checked onchange="onToggleSpectatorSharing(this.checked)">
+                        <span class="slider-apple"></span>
+                    </label>
+                </div>
+
+                <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; margin: 0;">
+                    Point any smartphone camera to view live scores. Toggle off anytime to pause sharing.
                 </p>
 
                 <!-- Network Destination Switcher -->
@@ -1940,8 +2008,9 @@
                 navBadge.textContent = 'Table';
                 const tableId = currentTable ? (currentTable.slug || currentTable.id) : '';
                 navActions.innerHTML = `
-                    <button class="btn-subtle" onclick="openLiveQrModal()" title="Show Live Spectator QR Code">
+                    <button class="btn-subtle" onclick="openLiveQrModal()" title="Spectator QR & Sharing Controls" style="display:inline-flex; align-items:center; gap:6px;">
                         <span>📺 Spectator QR</span>
+                        <span id="nav-spectator-status-dot" style="display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent-green);"></span>
                     </button>
                     <div class="table-id-pill" id="table-id-pill" onclick="copyTableId()" title="Click to copy Table ID">
                         <span class="id-prefix">ID:</span>
@@ -2203,7 +2272,7 @@
                     <td style="font-weight:700; color:var(--text-secondary);">${rankBadge}</td>
                     <td style="font-weight:600; color:#fff;">${escapeHtml(p.name)}</td>
                     <td style="color:var(--text-secondary);">${p.tablesCount} ${p.tablesCount === 1 ? 'table' : 'tables'}</td>
-                    <td style="font-weight:700;" class="${color}">${p.balance >= 0 ? '+' : ''}₹${p.balance.toLocaleString()}</td>
+                    <td style="font-weight:700;" class="${color}">${(p.balance > 0 ? '+' : (p.balance < 0 ? '-' : ''))}₹${Math.abs(p.balance || 0).toLocaleString()}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -2336,6 +2405,7 @@
         // ============================================================
         function renderTableLedger() {
             if (!currentTable) return;
+            updateSpectatorSharingUi();
             renderGrandScoreboard();
             renderPlayerCards();
             renderLedgerTable();
@@ -2874,12 +2944,23 @@
                 function sendTableSnapshot(conn) {
                     if (!conn) return;
                     try {
-                        conn.send({
-                            type: 'SYNC_STATE',
-                            gameName: currentGame ? currentGame.name : '',
-                            tableName: currentTable ? currentTable.name : '',
-                            table: currentTable
-                        });
+                        const isEnabled = !currentTable || currentTable.spectatorEnabled !== false;
+                        if (!isEnabled) {
+                            conn.send({
+                                type: 'BROADCAST_DISABLED',
+                                disabled: true,
+                                gameName: currentGame ? currentGame.name : '',
+                                tableName: currentTable ? currentTable.name : ''
+                            });
+                        } else {
+                            conn.send({
+                                type: 'SYNC_STATE',
+                                gameName: currentGame ? currentGame.name : '',
+                                tableName: currentTable ? currentTable.name : '',
+                                table: currentTable,
+                                disabled: false
+                            });
+                        }
                     } catch (err) {
                         console.warn('Error sending table snapshot:', err);
                     }
@@ -2926,17 +3007,54 @@
 
         function broadcastTableState() {
             if (!currentTable || activeSpectatorConns.size === 0) return;
-            const payload = {
+            const isEnabled = currentTable.spectatorEnabled !== false;
+            const payload = isEnabled ? {
                 type: 'SYNC_STATE',
                 gameName: currentGame ? currentGame.name : '',
                 tableName: currentTable ? currentTable.name : '',
-                table: currentTable
+                table: currentTable,
+                disabled: false
+            } : {
+                type: 'BROADCAST_DISABLED',
+                disabled: true,
+                gameName: currentGame ? currentGame.name : '',
+                tableName: currentTable ? currentTable.name : ''
             };
             activeSpectatorConns.forEach(conn => {
                 if (conn.open) {
                     try { conn.send(payload); } catch {}
                 }
             });
+        }
+
+        function onToggleSpectatorSharing(enabled) {
+            if (!currentTable) return;
+            currentTable.spectatorEnabled = !!enabled;
+            persistCurrentGame();
+            broadcastTableState();
+            updateSpectatorSharingUi();
+        }
+
+        function updateSpectatorSharingUi() {
+            const isEnabled = !currentTable || currentTable.spectatorEnabled !== false;
+            const toggleInput = document.getElementById('toggle-spectator-sharing');
+            if (toggleInput) toggleInput.checked = isEnabled;
+
+            const label = document.getElementById('qr-broadcast-status-label');
+            if (label) {
+                if (isEnabled) {
+                    label.textContent = 'Broadcasting live scores';
+                    label.style.color = 'var(--accent-green)';
+                } else {
+                    label.textContent = 'Paused · Spectators see default screen';
+                    label.style.color = 'var(--accent-orange)';
+                }
+            }
+
+            const dot = document.getElementById('nav-spectator-status-dot');
+            if (dot) {
+                dot.style.background = isEnabled ? 'var(--accent-green)' : 'var(--accent-orange)';
+            }
         }
 
         function updateHostSpectatorCount() {
@@ -2949,6 +3067,7 @@
 
         function openLiveQrModal() {
             if (!currentTable) return;
+            updateSpectatorSharingUi();
             initHostPeer();
             document.getElementById('modal-live-qr').classList.remove('hidden');
             renderQrCode();
@@ -3061,7 +3180,15 @@
 
                     conn.on('data', (data) => {
                         console.log('Spectator received data from host:', data);
-                        if (data && data.type === 'SYNC_STATE') {
+                        if (data && data.type === 'BROADCAST_DISABLED') {
+                            spectatorTableDisabled = true;
+                            const titleEl = document.getElementById('spectator-table-title');
+                            if (titleEl && data.tableName) {
+                                titleEl.textContent = `${data.tableName || 'Table'} · ${data.gameName || 'Game'}`;
+                            }
+                            renderSpectatorDisabledScreen();
+                        } else if (data && data.type === 'SYNC_STATE') {
+                            spectatorTableDisabled = false;
                             spectatorTableData = data.table;
                             const titleEl = document.getElementById('spectator-table-title');
                             if (titleEl) {
@@ -3102,17 +3229,64 @@
             }
         }
 
+        let spectatorTableDisabled = false;
+
+        function renderSpectatorDisabledScreen() {
+            const disabledEl = document.getElementById('spec-content-disabled');
+            const scoresEl = document.getElementById('spec-content-scores');
+            const roundsEl = document.getElementById('spec-content-rounds');
+            const switcher = document.getElementById('spectator-tab-switcher');
+            const statusEl = document.getElementById('spectator-conn-status');
+            const badgeText = document.getElementById('spectator-badge-text');
+            const pulseDot = document.getElementById('spectator-pulse-dot');
+
+            if (disabledEl) disabledEl.classList.remove('hidden');
+            if (scoresEl) scoresEl.classList.add('hidden');
+            if (roundsEl) roundsEl.classList.add('hidden');
+            if (switcher) switcher.style.display = 'none';
+
+            if (statusEl) {
+                statusEl.textContent = 'Paused by Table Host';
+                statusEl.style.color = 'var(--accent-orange)';
+            }
+            if (badgeText) badgeText.textContent = 'PAUSED';
+            if (pulseDot) pulseDot.style.background = 'var(--accent-orange)';
+        }
+
         function renderSpectatorDisplay() {
+            if (spectatorTableDisabled) {
+                renderSpectatorDisabledScreen();
+                return;
+            }
+
+            const disabledEl = document.getElementById('spec-content-disabled');
+            const switcher = document.getElementById('spectator-tab-switcher');
+            const statusEl = document.getElementById('spectator-conn-status');
+            const badgeText = document.getElementById('spectator-badge-text');
+            const pulseDot = document.getElementById('spectator-pulse-dot');
+
+            if (disabledEl) disabledEl.classList.add('hidden');
+            if (switcher) switcher.style.display = 'flex';
+            if (badgeText) badgeText.textContent = 'LIVE';
+            if (pulseDot) pulseDot.style.background = 'var(--accent-green)';
+            if (statusEl) {
+                statusEl.textContent = 'Connected · Live Syncing';
+                statusEl.style.color = 'var(--accent-green)';
+            }
+
+            switchSpectatorTab(activeSpectatorTab || "scores");
+
             if (!spectatorTableData) return;
             const table = spectatorTableData;
 
             // Dealer Net Hero Card
             const playersTotal = table.players ? table.players.reduce((sum, p) => sum + p.balance, 0) : 0;
-            const dealerNet = -playersTotal;
+            const dealerNet = (playersTotal === 0 || Object.is(playersTotal, -0)) ? 0 : -playersTotal;
 
             const heroDisplay = document.getElementById('spectator-dealer-hero-display');
             if (heroDisplay) {
-                heroDisplay.textContent = `${dealerNet >= 0 ? '+' : ''}₹${dealerNet.toLocaleString()}`;
+                const prefix = dealerNet > 0 ? '+' : (dealerNet < 0 ? '-' : '');
+                heroDisplay.textContent = `${prefix}₹${Math.abs(dealerNet).toLocaleString()}`;
                 heroDisplay.className = `dealer-val ${dealerNet > 0 ? 'color-positive' : (dealerNet < 0 ? 'color-negative' : 'color-neutral')}`;
             }
 
@@ -3201,6 +3375,7 @@
 
         function switchSpectatorTab(tabName) {
             activeSpectatorTab = tabName;
+            if (spectatorTableDisabled) return;
             const tabScores = document.getElementById('spec-tab-scores');
             const tabRounds = document.getElementById('spec-tab-rounds');
             const contentScores = document.getElementById('spec-content-scores');
