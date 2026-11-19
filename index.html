@@ -3121,8 +3121,8 @@
             document.getElementById('nav-title').textContent = 'Live Scoreboard';
             document.getElementById('nav-badge').textContent = 'Spectator';
             document.getElementById('nav-actions-container').innerHTML = `
-                <span class="live-pulse-badge">
-                    <span class="pulse-dot"></span> LIVE
+                <span class="live-pulse-badge" id="nav-spectator-live-badge">
+                    <span class="pulse-dot" id="nav-spectator-pulse-dot"></span> <span id="nav-spectator-badge-text">LIVE</span>
                 </span>
             `;
 
@@ -3251,6 +3251,10 @@
             }
             if (badgeText) badgeText.textContent = 'PAUSED';
             if (pulseDot) pulseDot.style.background = 'var(--accent-orange)';
+            const navText = document.getElementById('nav-spectator-badge-text');
+            const navDot = document.getElementById('nav-spectator-pulse-dot');
+            if (navText) navText.textContent = 'PAUSED';
+            if (navDot) navDot.style.background = 'var(--accent-orange)';
         }
 
         function renderSpectatorDisplay() {
@@ -3273,6 +3277,10 @@
                 statusEl.textContent = 'Connected · Live Syncing';
                 statusEl.style.color = 'var(--accent-green)';
             }
+            const navText = document.getElementById('nav-spectator-badge-text');
+            const navDot = document.getElementById('nav-spectator-pulse-dot');
+            if (navText) navText.textContent = 'LIVE';
+            if (navDot) navDot.style.background = 'var(--accent-green)';
 
             switchSpectatorTab(activeSpectatorTab || "scores");
 
