@@ -1614,7 +1614,7 @@
                     🔒
                 </div>
                 <h2 style="font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.4px;">Live Display Paused</h2>
-                <p style="font-size: 14px; color: var(--text-secondary); max-width: 340px; line-height: 1.5;">
+                <p id="spec-disabled-submsg" style="font-size: 14px; color: var(--text-secondary); max-width: 340px; line-height: 1.5;">
                     The table host has paused live score broadcasting. Scores and round history are temporarily hidden.
                 </p>
                 <div style="margin-top: 10px; font-size: 13px; color: var(--accent-orange); display: flex; align-items: center; gap: 8px; background: rgba(255, 159, 10, 0.1); padding: 8px 16px; border-radius: 980px; border: 0.5px solid rgba(255, 159, 10, 0.25);">
@@ -1749,10 +1749,21 @@
                     Point any smartphone camera to view live scores. Toggle off anytime to pause sharing.
                 </p>
 
-                <!-- Network Destination Switcher -->
+                <!-- Network Destination Switcher with Icons -->
                 <div class="tab-switcher" style="width: 100%;">
-                    <button type="button" class="tab-btn active" id="qr-target-wifi" onclick="setQrNetworkTarget('wifi')">Home Wi-Fi (192.168.1.10)</button>
-                    <button type="button" class="tab-btn" id="qr-target-gh" onclick="setQrNetworkTarget('gh')">GitHub Pages</button>
+                    <button type="button" class="tab-btn active" id="qr-target-gh" onclick="setQrNetworkTarget('gh')" style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <span>🌐</span>
+                        <span>Internet (Universal)</span>
+                    </button>
+                    <button type="button" class="tab-btn" id="qr-target-wifi" onclick="setQrNetworkTarget('wifi')" style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <span>📶</span>
+                        <span>Local Wi-Fi Only</span>
+                    </button>
+                </div>
+
+                <!-- LAN Privacy Isolation Notice -->
+                <div id="lan-privacy-notice" class="hidden" style="width: 100%; text-align: left; padding: 10px 12px; background: rgba(255, 159, 10, 0.12); border: 0.5px solid rgba(255, 159, 10, 0.3); border-radius: var(--radius-sm); font-size: 11px; color: var(--accent-orange); line-height: 1.4;">
+                    🛡️ <strong>LAN Privacy Active</strong>: External internet viewers disconnected. Live score sharing is strictly confined within your home Wi-Fi network (<code>192.168.1.10</code>).
                 </div>
 
                 <!-- High-contrast QR card -->
@@ -2854,7 +2865,7 @@
         // ============================================================
         // WEBRTC PEER-TO-PEER & SPECTATOR DISPLAY
         // ============================================================
-        let qrNetworkTarget = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'wifi' : 'gh';
+        let qrNetworkTarget = 'gh'; // Default is always Internet (Universal)
         let localWifiHost = '192.168.1.10:8000';
 
         function getTableRoomId() {
@@ -2873,8 +2884,35 @@
             qrNetworkTarget = target;
             const btnWifi = document.getElementById('qr-target-wifi');
             const btnGh = document.getElementById('qr-target-gh');
+            const lanNotice = document.getElementById('lan-privacy-notice');
+
             if (btnWifi) btnWifi.classList.toggle('active', target === 'wifi');
             if (btnGh) btnGh.classList.toggle('active', target === 'gh');
+
+            if (target === 'wifi') {
+                if (lanNotice) lanNotice.classList.remove('hidden');
+
+                // Graceful Privacy Isolation: Disconnect active internet viewers so data does not leak
+                if (activeSpectatorConns && activeSpectatorConns.size > 0) {
+                    activeSpectatorConns.forEach(conn => {
+                        try {
+                            conn.send({
+                                type: 'BROADCAST_DISABLED',
+                                disabled: true,
+                                reason: 'LAN_ISOLATION',
+                                message: 'Host switched table to Local Wi-Fi Only mode.'
+                            });
+                            conn.close();
+                        } catch {}
+                    });
+                    activeSpectatorConns.clear();
+                    updateHostSpectatorCount();
+                }
+            } else {
+                if (lanNotice) lanNotice.classList.add('hidden');
+                broadcastTableState();
+            }
+
             renderQrCode();
         }
 
@@ -3068,6 +3106,7 @@
         function openLiveQrModal() {
             if (!currentTable) return;
             updateSpectatorSharingUi();
+            setQrNetworkTarget(qrNetworkTarget);
             initHostPeer();
             document.getElementById('modal-live-qr').classList.remove('hidden');
             renderQrCode();
@@ -3231,8 +3270,16 @@
 
         let spectatorTableDisabled = false;
 
-        function renderSpectatorDisabledScreen() {
+        function renderSpectatorDisabledScreen(customMsg) {
             const disabledEl = document.getElementById('spec-content-disabled');
+            const subMsgEl = document.getElementById('spec-disabled-submsg');
+            if (subMsgEl && customMsg) {
+                subMsgEl.textContent = customMsg === 'LAN_ISOLATION'
+                    ? 'Host has switched this table to Local Wi-Fi Only. External internet viewing is disconnected.'
+                    : customMsg;
+            } else if (subMsgEl) {
+                subMsgEl.textContent = 'The table host has paused live score broadcasting. Scores and round history are temporarily hidden.';
+            }
             const scoresEl = document.getElementById('spec-content-scores');
             const roundsEl = document.getElementById('spec-content-rounds');
             const switcher = document.getElementById('spectator-tab-switcher');
